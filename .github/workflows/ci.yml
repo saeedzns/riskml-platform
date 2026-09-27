@@ -58,9 +58,12 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: pypa/gh-action-pip-audit@v1.1.0
+      - uses: actions/setup-python@v5
         with:
-          inputs: pyproject.toml
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pip_audit --local --skip-editable
 
   airflow-dag:
     runs-on: ubuntu-latest
