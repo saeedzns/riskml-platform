@@ -1,0 +1,111 @@
+name: risk-ml-platform
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: docker/airflow.Dockerfile
+  environment: &airflow-environment
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg://risk_ml:risk_ml_dev@postgres:5432/airflow
+    RISK_ML_DATABASE_URL: postgresql+psycopg://risk_ml:risk_ml_dev@postgres:5432/risk_ml
+    RISK_ML_MLFLOW_TRACKING_URI: http://mlflow:5000
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags:ro
+    - airflow-logs:/opt/airflow/logs
+    - ./data/processed:/opt/airflow/data/processed
+    - ./artifacts:/opt/airflow/artifacts
+    - ./sql:/opt/airflow/sql:ro
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16.10-bookworm
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-risk_ml}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-risk_ml_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-risk_ml}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/init-airflow-db.sql:/docker-entrypoint-initdb.d/init-airflow-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-risk_ml} -d ${POSTGRES_DB:-risk_ml}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: docker/mlflow.Dockerfile
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - mlflow-data:/mlflow
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    environment:
+      RISK_ML_MODEL_PATH: /app/artifacts/champion.joblib
+      RISK_ML_DATABASE_URL: postgresql+psycopg://risk_ml:risk_ml_dev@postgres:5432/risk_ml
+      RISK_ML_MLFLOW_TRACKING_URI: http://mlflow:5000
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./artifacts:/app/artifacts:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+  airflow-init:
+    <<: *airflow-common
+    command: airflow db migrate
+    restart: "no"
+
+  airflow-api-server:
+    <<: *airflow-common
+    command: airflow api-server
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: airflow scheduler
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname $${HOSTNAME}"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: airflow dag-processor
+
+volumes:
+  postgres-data:
+  mlflow-data:
+  airflow-logs:
+
