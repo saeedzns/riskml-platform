@@ -59,9 +59,10 @@ documented. Residual complexity is dependency weight, especially Airflow/MLflow/
 
 ## Residual limitations
 
-Docker engine absence prevents local image builds, PostgreSQL migration/integration execution,
-`EXPLAIN ANALYZE`, Linux Airflow runtime import/DAG trigger, and full Compose health testing. No GitHub
-remote exists, so Actions have not run. Azure is designed but not deployed, and Bicep `what-if` awaits
+The first GitHub run independently verified PostgreSQL integration and Linux Airflow DAG import, then
+exposed optional-dependency and clean-checkout image-build defects that are repaired locally and await
+remote rerun confirmation. Local Docker availability still governs full-stack health testing and
+`EXPLAIN ANALYZE`. Azure is designed but not deployed, and Bicep `what-if` awaits
 Azure CLI/auth/subscription/network decisions. The dataset is old/small; there is no temporal/external
 validation, fairness analysis, production telemetry backend, delayed-label loop, or business-validated
 threshold cost. These blockers and minimum resume actions are in `BLOCKERS.md`.

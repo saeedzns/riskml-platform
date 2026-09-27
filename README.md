@@ -73,7 +73,8 @@ available; container runtime and PostgreSQL integration status are stated precis
 ## API
 
 Liveness is independent of model readiness. `/ready` returns 503 until a compatible trusted artifact
-loads. The process loads that artifact once and never logs request bodies.
+loads. The process loads that artifact once and never logs request bodies. API images contain no model
+artifacts: Compose and Azure supply the trusted champion through read-only runtime mounts.
 
 ```bash
 curl http://localhost:8000/health
@@ -123,8 +124,9 @@ training/serialization, ML metrics, MLflow-backed training, SHAP, API contracts 
 import, monitoring, UCI mapping, and CLI behavior.
 
 CI definitions add a PostgreSQL service job, clean migration cycle, API image build, Compose validation,
-secret scanning, dependency audit, and a dedicated Airflow job. Remote CI has not run because no
-authenticated GitHub remote is available.
+secret scanning, dependency audit, and a dedicated Airflow job. The first independent remote run
+verified PostgreSQL integration and the dedicated Airflow DAG job; repairs for the general quality and
+clean-checkout API-image jobs require confirmation by the next remote run.
 
 Azure Bicep targets Container Apps, PostgreSQL Flexible Server, Blob Storage, and Log Analytics using
 GitHub OIDC. It is Azure-ready but **not deployed**; credentials, subscription/region approval,
@@ -148,6 +150,6 @@ suites. Downloaded data, model artifacts, MLflow state, databases, secrets, and 
 are intentionally ignored.
 
 Security policy and disclosure guidance are in `SECURITY.md`. The roadmap is limited to external
-verification: run PostgreSQL/container integration on a machine with a Docker engine, run remote CI,
-complete private Azure networking, and smoke-test an approved Azure deployment.
+verification: complete the repaired remote CI run, run the full container stack where a Docker engine
+is available, complete private Azure networking, and smoke-test an approved Azure deployment.
 

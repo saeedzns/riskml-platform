@@ -16,9 +16,12 @@ python -m risk_ml.cli train --model all
 ```
 
 Start the API with `make api`, then in another shell run `make smoke`. `/health` proves the process is
-alive; `/ready` proves a compatible artifact loaded. Start orchestration with `docker compose up -d
-airflow-init`, wait for completion, then start `airflow-api-server airflow-scheduler
-airflow-dag-processor`.
+alive; `/ready` proves a compatible artifact loaded. API images deliberately contain no model: local
+Compose mounts `./artifacts` read-only at runtime, so create `artifacts/champion.joblib` with the train
+command before starting the `api` service. A missing mount/artifact leaves `/health` available and
+causes `/ready` to return 503 rather than trusting a bundled fallback. Start orchestration with
+`docker compose up -d airflow-init`, wait for completion, then start `airflow-api-server`,
+`airflow-scheduler`, and `airflow-dag-processor`.
 
 ## Recovery
 

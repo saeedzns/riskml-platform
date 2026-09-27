@@ -14,7 +14,7 @@ def test_airflow_dag_source_parses() -> None:
 
 @pytest.mark.skipif(os.name == "nt", reason="Airflow runtime requires a POSIX environment")
 def test_airflow_dag_import_and_structure() -> None:
-    pytest.importorskip("airflow")
+    pytest.importorskip("airflow.providers.standard")
     path = Path("airflow/dags/risk_ml_pipeline.py")
     spec = importlib.util.spec_from_file_location("risk_ml_pipeline", path)
     assert spec is not None and spec.loader is not None

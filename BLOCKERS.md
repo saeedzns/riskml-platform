@@ -1,18 +1,19 @@
 # External and environment blockers
 
-## GitHub repository and remote CI
+## GitHub remote CI verification
 
-GitHub CLI is not installed and no authenticated remote is available. Local workflows are complete,
-but remote CI cannot truthfully be claimed. Minimum action: create an empty repository, then run
-`git remote add origin <URL> && git push -u origin main` and verify both Actions workflows.
+The repository now has an authenticated GitHub remote. Its first independent run passed PostgreSQL
+integration and the dedicated Airflow DAG job, while exposing optional-dependency and clean-build-context
+failures in the general quality and API-image jobs. Those root causes are repaired locally; the next
+remote Actions run must complete before the overall CI workflow can be claimed green.
 
 ## Docker integration runtime
 
-Docker CLI/Compose validates the configuration, but the Docker Linux engine is unavailable and Docker
-Desktop is not installed at its standard location. Consequently PostgreSQL migrations/integration
-tests and full-stack container build/health checks cannot run here. Minimum action: start/install a
-compatible Docker engine, run `docker compose up -d postgres`, `python -m alembic upgrade head`, and
-`python -m pytest -m integration`, followed by the stack smoke procedure in the local runbook.
+Docker CLI/Compose validates the configuration, but the local Docker Linux engine was unavailable for
+this repair run (the Docker Desktop Linux named pipe does not exist). A temporary clean build context
+with zero model-artifact entries was assembled, but the image build could not contact a daemon. The
+next clean-checkout GitHub image build must verify the repaired Dockerfile; the PostgreSQL service job
+already passed remotely. The full-stack smoke path is documented in the local runbook.
 Airflow 3.3 explicitly requires a POSIX runtime, so its source is parsed on Windows while its real DAG
 import is assigned to the Linux CI/container path.
 

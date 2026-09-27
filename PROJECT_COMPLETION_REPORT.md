@@ -58,10 +58,11 @@ validation/deployment commands are in `BLOCKERS.md` and `docs/runbooks/azure-dep
 
 ## G. Known limitations
 
-PostgreSQL/container and Linux Airflow integration remain unexecuted on this host; remote CI is also
-unexecuted. The source has no reliable time axis, so the split is not temporal. Fairness, lending
-compliance, external validation, authenticated API ingress, a production feature store, and live
-concept/performance monitoring are deliberately out of scope.
+The first remote CI run independently passed PostgreSQL integration and the dedicated Linux Airflow
+DAG job. It exposed two boundary defects in the general quality and clean-checkout API-image jobs;
+local repairs are complete but await a new remote run. The source has no reliable time axis, so the
+split is not temporal. Fairness, lending compliance, external validation, authenticated API ingress,
+a production feature store, and live concept/performance monitoring are deliberately out of scope.
 
 ## H. Portfolio talking points
 
