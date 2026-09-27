@@ -1,0 +1,25 @@
+# Azure deployment architecture
+
+```mermaid
+flowchart LR
+  GH[GitHub Actions OIDC] --> ARM[Azure Resource Manager / Bicep]
+  U[API client] --> CA[Azure Container Apps]
+  CA --> PG[(PostgreSQL Flexible Server)]
+  CA --> BS[(Private Blob Storage)]
+  CA --> KV[Key Vault / managed secrets]
+  CA --> LA[Log Analytics]
+  GH --> ACR[Azure Container Registry]
+  ACR --> CA
+```
+
+Container Apps is the public TLS termination and autoscaling boundary. The database has public access
+disabled; production requires VNet integration and private DNS before deployment. Artifacts are
+immutable blobs addressed by version, with credentials exposed only as Container Apps secret
+references or accessed through managed identity. GitHub uses workload identity federation (OIDC),
+not a stored service-principal secret.
+
+The Bicep uses a burstable PostgreSQL server, locally redundant storage, seven-day non-production
+retention, and scale-to-zero API defaults to control development cost. PostgreSQL, Log Analytics,
+registry storage, and outbound traffic remain billable. The placeholder container image is replaced
+by the deployment workflow only after a versioned application image exists.
+
