@@ -37,6 +37,33 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   }
 }
 
+resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2023-05-01' = {
+  parent: storage
+  name: 'default'
+}
+
+resource modelShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
+  parent: fileService
+  name: 'models'
+  properties: {
+    accessTier: 'TransactionOptimized'
+    enabledProtocols: 'SMB'
+  }
+}
+
+resource modelStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = {
+  parent: environment
+  name: 'models'
+  properties: {
+    azureFile: {
+      accountName: storage.name
+      accountKey: storage.listKeys().keys[0].value
+      shareName: modelShare.name
+      accessMode: 'ReadOnly'
+    }
+  }
+}
+
 resource postgres 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
   name: 'psql-riskml-${suffix}'
   location: location
@@ -66,12 +93,18 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
       containers: [{
         name: 'api'
         image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+        env: [
+          { name: 'RISK_ML_ENVIRONMENT', value: environmentName }
+          { name: 'RISK_ML_MODEL_PATH', value: '/models/champion.joblib' }
+        ]
+        volumeMounts: [{ volumeName: 'models', mountPath: '/models' }]
         resources: { cpu: json('0.5'), memory: '1Gi' }
         probes: [
           { type: 'Liveness', httpGet: { path: '/health', port: 8000 }, initialDelaySeconds: 10 }
           { type: 'Readiness', httpGet: { path: '/ready', port: 8000 }, initialDelaySeconds: 10 }
         ]
       }]
+      volumes: [{ name: 'models', storageType: 'AzureFile', storageName: modelStorage.name }]
       scale: { minReplicas: environmentName == 'prod' ? 1 : 0, maxReplicas: 3 }
     }
   }

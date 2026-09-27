@@ -17,12 +17,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
       - uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      - uses: azure/arm-deploy@v2
+      - id: infrastructure
+        uses: azure/arm-deploy@v2
         with:
           scope: subscription
           region: ${{ vars.AZURE_LOCATION }}
@@ -31,6 +36,15 @@ jobs:
             environmentName=prod location=${{ vars.AZURE_LOCATION }}
             postgresAdminLogin=${{ vars.POSTGRES_ADMIN_LOGIN }}
             postgresAdminPassword=${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+      - run: python -m pip install .
+      - run: python -m risk_ml.cli download-uci --output data/processed/uci_credit.csv
+      - run: python -m risk_ml.cli train --model xgboost --input data/processed/uci_credit.csv
+      - name: Upload immutable champion artifact
+        run: >-
+          az storage file upload
+          --account-name "${{ steps.infrastructure.outputs.storageAccountName }}"
+          --share-name models --source artifacts/champion.joblib
+          --path champion.joblib --auth-mode login --overwrite
       - run: >-
           az containerapp update --name "${{ vars.CONTAINER_APP_NAME }}"
           --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}"

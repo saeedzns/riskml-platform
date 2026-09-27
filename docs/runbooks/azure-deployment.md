@@ -3,7 +3,8 @@
 ## Prerequisites
 
 An owner must select an approved subscription/region and budget, install Azure CLI/Bicep, and create a
-GitHub federated identity constrained to the deployment environment. Configure repository variables
+GitHub federated identity constrained to the deployment environment, including Storage File Data
+Privileged Contributor on the model storage scope. Configure repository variables
 listed in `.github/workflows/deploy-azure.yml`; keep the PostgreSQL bootstrap password in an
 environment secret and rotate it after managed access is established.
 
@@ -17,8 +18,10 @@ az deployment sub what-if --location REGION --template-file infra/main.bicep \
 
 Before deployment, add VNet delegation/private endpoints and Key Vault policy appropriate to the
 organization; the template deliberately refuses public database access. Build, scan, and push an
-immutable API image, then dispatch the workflow with its digest-derived tag. Apply migrations as a
-one-shot job before shifting traffic. Verify `/health`, `/ready`, a canary prediction, logs, and metrics.
+immutable API image, then dispatch the workflow with its digest-derived tag. The workflow rebuilds the
+documented UCI XGBoost artifact and uploads it to the read-only model share before updating the app.
+Apply migrations as a one-shot job before shifting traffic. Verify `/health`, `/ready`, a canary
+prediction, logs, and metrics.
 
 ## Rollback
 

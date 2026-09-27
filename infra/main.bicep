@@ -34,4 +34,5 @@ module platform 'platform.bicep' = {
 
 output resourceGroupName string = resourceGroup.name
 output apiFqdn string = platform.outputs.apiFqdn
+output storageAccountName string = platform.outputs.storageAccountName
 
