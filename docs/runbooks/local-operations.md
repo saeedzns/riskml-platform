@@ -29,7 +29,8 @@ Compose network, writes only through the mounted data/artifact directories, and 
 read-only. API images deliberately contain no model. Compose mounts the generated champion read-only;
 without it `/health` remains available while `/ready` returns 503. MLflow host validation permits only
 the internal `mlflow:5000` endpoint and local UI endpoints on `localhost`; the security middleware
-remains enabled.
+remains enabled. Artifact uploads are proxied through the tracking server into its `mlflow-data`
+volume; clients do not mount or write the server's `/mlflow` filesystem.
 
 For the deterministic offline path, replace the download and ingest commands with:
 
