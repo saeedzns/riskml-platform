@@ -53,8 +53,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker compose config --quiet
+      - run: docker compose --profile tools config --quiet
       - run: docker build -f docker/api.Dockerfile -t risk-ml-api:ci .
+      - run: docker build -f docker/cli.Dockerfile -t risk-ml-cli:ci .
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

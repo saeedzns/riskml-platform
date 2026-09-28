@@ -44,9 +44,12 @@ INSERT = text(
 )
 
 
-def ingest_csv(engine: Engine, path: Path, source_name: str = "synthetic_fixture") -> int:
+def ingest_csv(engine: Engine, path: Path, source_name: str) -> int:
     """Validate and upsert a CSV using a stable source business key."""
 
+    normalized_source = source_name.strip()
+    if not normalized_source:
+        raise ValueError("source_name must be explicit and non-empty")
     frame = validate_applications(pd.read_csv(path))
     records: list[dict[str, object]] = []
     namespace = uuid.UUID("a6e8ce78-55ca-4731-8828-05a69d1ae947")
@@ -55,8 +58,8 @@ def ingest_csv(engine: Engine, path: Path, source_name: str = "synthetic_fixture
         records.append(
             {
                 **row,
-                "application_id": uuid.uuid5(namespace, f"{source_name}:{row_id}"),
-                "source_name": source_name,
+                "application_id": uuid.uuid5(namespace, f"{normalized_source}:{row_id}"),
+                "source_name": normalized_source,
                 "source_row_id": row_id,
                 "record_hash": hashlib.sha256(canonical.encode()).hexdigest(),
             }

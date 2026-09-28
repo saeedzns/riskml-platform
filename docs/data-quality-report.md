@@ -13,4 +13,6 @@ columns and verify rejection.
 Identifiers, target, repayment status, loss amount, and collection status are forbidden as model
 features. Target-derived SQL aggregates are not present in the modeling view. The dataset has no
 reliable event time, so a seeded stratified split is used and no temporal-validation claim is made.
+The curated loader also excludes non-target portfolio-wide aggregate, ratio, and rank columns from the
+model contract, preventing held-out distribution statistics from becoming training inputs.
 

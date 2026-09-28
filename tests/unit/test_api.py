@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from risk_ml.api.app import create_app
 from risk_ml.config import Settings
 from risk_ml.data.fixture import generate_fixture
+from risk_ml.data.sources import FIXTURE_SOURCE
 from risk_ml.modeling.training import train_model
 from risk_ml.services.scoring import ScoringService
 
@@ -14,7 +15,13 @@ def _record() -> dict[str, object]:
 
 
 def _client(tmp_path: Path, max_batch_size: int = 3) -> TestClient:
-    result = train_model(generate_fixture(160), kind="xgboost", artifact_dir=tmp_path)
+    result = train_model(
+        generate_fixture(160),
+        kind="xgboost",
+        artifact_dir=tmp_path,
+        dataset_source=FIXTURE_SOURCE,
+        dataset_relation="unit-test-memory",
+    )
     settings = Settings(
         model_path=result.artifact_path, max_batch_size=max_batch_size, _env_file=None
     )

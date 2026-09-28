@@ -1,21 +1,28 @@
 # External and environment blockers
 
-## GitHub remote CI verification
+## Independent acceptance
 
-The repository now has an authenticated GitHub remote. Its first independent run passed PostgreSQL
-integration and the dedicated Airflow DAG job, while exposing optional-dependency and clean-build-context
-failures in the general quality and API-image jobs. Those root causes are repaired locally; the next
-remote Actions run must complete before the overall CI workflow can be claimed green.
+Reported GitHub run #2 passed quality, PostgreSQL integration, and the dedicated Airflow DAG job, and
+its API build passed the former missing-artifact failure. This acceptance repair changes the training
+data path, integration test, Compose topology, and image matrix. A new GitHub Actions run and another
+clean-room execution must verify them before acceptance can be claimed.
 
-## Docker integration runtime
+## Current Docker integration verification
 
-Docker CLI/Compose validates the configuration, but the local Docker Linux engine was unavailable for
-this repair run (the Docker Desktop Linux named pipe does not exist). A temporary clean build context
-with zero model-artifact entries was assembled, but the image build could not contact a daemon. The
-next clean-checkout GitHub image build must verify the repaired Dockerfile; the PostgreSQL service job
-already passed remotely. The full-stack smoke path is documented in the local runbook.
-Airflow 3.3 explicitly requires a POSIX runtime, so its source is parsed on Windows while its real DAG
-import is assigned to the Linux CI/container path.
+An independent pre-repair clean-room run verified Docker Desktop Linux, PostgreSQL 16, MLflow,
+migration from an empty database, and the expected schemas/tables. During this repair the Docker 29.8
+engine initially responded and began building the API and CLI images, then its named pipe disappeared
+before the builds completed. Compose configuration still validates. The new CLI image, modified
+PostgreSQL integration test, full canonical training path, API startup, and prediction therefore await
+the independent gates above.
+
+## Native Windows policy
+
+Windows Application Control blocks compiled extensions in the clean-room native environment: the
+reported scikit-learn `_argkmin` import and this repair's explicit PostgreSQL test attempt both failed
+when policy blocked `psycopg_binary.pq`. Security policy and dependency versions must not be weakened
+to evade it. Use the documented Linux Compose CLI path. Airflow 3.3 likewise requires a POSIX runtime;
+native Windows only parses its source while Linux CI performs the runtime import.
 
 ## Azure deployment
 

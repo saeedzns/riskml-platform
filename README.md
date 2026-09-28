@@ -32,7 +32,9 @@ hyperparameter search on the test set. Logistic regression achieved ROC-AUC **0.
 precision **0.5515**, and Brier score **0.1994**. Balanced XGBoost achieved ROC-AUC **0.7353**,
 average precision **0.5432**, Brier score **0.1975**, and F1 **0.5269** at threshold 0.5. The baseline
 ranks slightly better; XGBoost is retained as the explanation-capable comparator, not falsely called
-the winner. See `docs/evaluation-report.md` for confusion matrices and threshold costs.
+the winner. These generated metrics predate the canonical database-loader repair; the selected rows,
+features, split, and model code are unchanged, but reproduction through the repaired container path is
+an independent acceptance item. See `docs/evaluation-report.md` for confusion matrices and costs.
 
 The 1994 dataset is small and geographically/historically narrow. These are reproducibility results,
 not evidence of suitability for lending. Age and foreign-worker attributes raise fairness and legal
@@ -48,27 +50,27 @@ concerns; this software must not influence real credit decisions.
 
 ## Quick start
 
-Python 3.12 is required. Docker is required for PostgreSQL and the complete platform.
+Python 3.12 is required. The supported reproducibility path runs application commands in Linux
+containers, including on Windows hosts where Application Control blocks compiled Python extensions.
 
 ```bash
-python -m venv .venv
-# Activate the environment, then:
-python -m pip install -e ".[dev]"
-python -m risk_ml.cli download-uci
-make verify
-docker compose config
 docker compose up -d postgres mlflow
-python -m alembic upgrade head
-python -m risk_ml.cli ingest --input data/processed/uci_credit.csv
-python -m risk_ml.cli transform
-python -m risk_ml.cli train --model all --input data/processed/uci_credit.csv
-make api
+docker compose run --rm cli python -m alembic upgrade head
+docker compose run --rm cli risk-ml download-uci --output data/processed/uci_credit.csv
+docker compose run --rm cli risk-ml ingest \
+  --input data/processed/uci_credit.csv --source uci-statlog-german-credit-144
+docker compose run --rm cli risk-ml transform
+docker compose run --rm cli risk-ml train \
+  --model all --source uci-statlog-german-credit-144
+docker compose up -d api
+curl http://localhost:8000/health
+curl http://localhost:8000/ready
 ```
 
-The UCI download needs network access. `python -m risk_ml.cli fixture` produces a deterministic,
-source-compatible offline dataset instead. Detailed recovery steps are in the local operations
-runbook. On this development machine Docker Compose configuration validated, but no Docker daemon was
-available; container runtime and PostgreSQL integration status are stated precisely in `BLOCKERS.md`.
+The UCI download needs network access. The deterministic offline alternative uses `risk-ml fixture`
+followed by ingestion and training with `--source synthetic-fixture`; provenance is never inferred
+from a filename. Detailed prediction, monitoring, native-development, and recovery commands are in
+the local operations runbook.
 
 ## API
 
@@ -105,9 +107,12 @@ The official dataset is [UCI Statlog German Credit](https://doi.org/10.24432/C5N
 4.0. Raw/downloaded data is ignored. The selected contract maps 13 of 20 source attributes plus the
 target; the mapping and rejected alternatives are recorded in ADR 0002.
 
-Run `python -m risk_ml.cli train --model all --input PATH`. MLflow records parameters, metrics,
-dataset/code tags, evaluation JSON, and the trusted local artifact. Launch the UI with `mlflow ui
---backend-store-uri sqlite:///mlflow.db`.
+Canonical training reads an explicitly selected source from `curated.credit_modeling`; it never
+rereads the downloaded CSV. The loader validates the frame but selects only the 13 established raw
+features and target. Whole-dataset SQL aggregates, ranks, and ratios remain analytical columns rather
+than model inputs, preventing held-out distribution information from entering training. MLflow records
+the exact source identifier, curated relation, parameters, metrics, evaluation files, and model
+artifact. The Compose MLflow UI is available at `http://localhost:5000`.
 
 Run `python -m risk_ml.cli monitor` for a stable comparison and add `--simulate-shift` for the clearly
 labeled offline drift demonstration. The controlled shift detects `credit_amount` (PSI 5.2698) and
@@ -116,17 +121,18 @@ production monitoring.
 
 ## Testing and delivery status
 
-Canonical checks are `make lint`, `make type`, `make test`, and `make test-integration`. The local
-non-integration suite currently has 29 collected tests (28 selected, one PostgreSQL integration test
-deselected); the Airflow runtime import is skipped on native Windows and assigned to Linux CI. The
-selected suite passed with 84.62% branch-aware coverage. It exercises validation failures, leakage defense,
-training/serialization, ML metrics, MLflow-backed training, SHAP, API contracts and limits, Airflow DAG
-import, monitoring, UCI mapping, and CLI behavior.
+Canonical checks are `make lint`, `make type`, `make test`, and `make test-integration`. The acceptance
+repair's local non-integration run collected 38 tests: 36 passed, the Airflow runtime import was skipped
+on native Windows, and one PostgreSQL integration test was deselected. Branch-aware coverage was
+90.29%. The suite exercises curated-frame loading, explicit lineage, validation failures, leakage
+defense, split-before-fit training, MLflow metadata, serialization, SHAP, API contracts and limits,
+Airflow structure, monitoring, UCI mapping, and CLI behavior.
 
-CI definitions add a PostgreSQL service job, clean migration cycle, API image build, Compose validation,
-secret scanning, dependency audit, and a dedicated Airflow job. The first independent remote run
-verified PostgreSQL integration and the dedicated Airflow DAG job; repairs for the general quality and
-clean-checkout API-image jobs require confirmation by the next remote run.
+CI definitions add a PostgreSQL service job, clean migration cycle, API and CLI image builds, profiled Compose
+validation, secret scanning, installed-environment dependency audit, and a dedicated Airflow job.
+Reported run #2 passed quality, PostgreSQL integration, and Airflow, and proved the API build passed
+the former missing-artifact point. The current acceptance repair still requires independent CI and
+clean-room verification.
 
 Azure Bicep targets Container Apps, PostgreSQL Flexible Server, Blob Storage, and Log Analytics using
 GitHub OIDC. It is Azure-ready but **not deployed**; credentials, subscription/region approval,
@@ -149,7 +155,6 @@ under `airflow/dags`; infrastructure under `infra`; tests are split into unit an
 suites. Downloaded data, model artifacts, MLflow state, databases, secrets, and service runtime files
 are intentionally ignored.
 
-Security policy and disclosure guidance are in `SECURITY.md`. The roadmap is limited to external
-verification: complete the repaired remote CI run, run the full container stack where a Docker engine
-is available, complete private Azure networking, and smoke-test an approved Azure deployment.
+Security policy and disclosure guidance are in `SECURITY.md`. Remaining work is external acceptance,
+private Azure networking, and smoke-testing an approved Azure deployment.
 

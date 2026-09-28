@@ -1,27 +1,50 @@
 # Local operations runbook
 
-## Bootstrap and verify
+## Canonical Linux container workflow
 
-Use Python 3.12. Create and activate a virtual environment, then run:
+This path is supported on Linux and on Windows hosts where Application Control prevents native
+scikit-learn extensions from loading. It does not require weakening host security.
 
 ```bash
-python -m pip install -e ".[dev]"
-make verify
-docker compose config
 docker compose up -d postgres mlflow
-python -m alembic upgrade head
-python -m risk_ml.cli ingest
-python -m risk_ml.cli transform
-python -m risk_ml.cli train --model all
+docker compose run --rm cli python -m alembic upgrade head
+docker compose run --rm cli risk-ml download-uci --output data/processed/uci_credit.csv
+docker compose run --rm cli risk-ml ingest \
+  --input data/processed/uci_credit.csv --source uci-statlog-german-credit-144
+docker compose run --rm cli risk-ml transform
+docker compose run --rm cli risk-ml train \
+  --model all --source uci-statlog-german-credit-144
+docker compose up -d api
+curl http://localhost:8000/health
+curl http://localhost:8000/ready
+curl -X POST http://localhost:8000/api/v1/predict \
+  -H 'Content-Type: application/json' \
+  -d '{"age":35,"credit_amount":3500,"duration_months":24,"installment_rate":3,"existing_credits":1,"dependents":1,"checking_status":"low","credit_history":"existing_paid","purpose":"car","savings_status":"medium","employment_duration":"medium","housing":"own","foreign_worker":true}'
+docker compose run --rm cli risk-ml monitor --simulate-shift \
+  --output artifacts/drift-shifted.json
 ```
 
-Start the API with `make api`, then in another shell run `make smoke`. `/health` proves the process is
-alive; `/ready` proves a compatible artifact loaded. API images deliberately contain no model: local
-Compose mounts `./artifacts` read-only at runtime, so create `artifacts/champion.joblib` with the train
-command before starting the `api` service. A missing mount/artifact leaves `/health` available and
-causes `/ready` to return 503 rather than trusting a bundled fallback. Start orchestration with
-`docker compose up -d airflow-init`, wait for completion, then start `airflow-api-server`,
-`airflow-scheduler`, and `airflow-dag-processor`.
+The CLI service contains the project package and migrations, reaches PostgreSQL and MLflow on the
+Compose network, writes only through the mounted data/artifact directories, and sees repository SQL
+read-only. API images deliberately contain no model. Compose mounts the generated champion read-only;
+without it `/health` remains available while `/ready` returns 503.
+
+For the deterministic offline path, replace the download and ingest commands with:
+
+```bash
+docker compose run --rm cli risk-ml fixture --output data/processed/credit_fixture.csv
+docker compose run --rm cli risk-ml ingest \
+  --input data/processed/credit_fixture.csv --source synthetic-fixture
+docker compose run --rm cli risk-ml transform
+docker compose run --rm cli risk-ml train --model all --source synthetic-fixture
+```
+
+Native development remains available where host policy permits: install `.[dev]`, run `make verify`,
+and set `RISK_ML_DATABASE_URL` and `RISK_ML_MLFLOW_TRACKING_URI` before invoking the same CLI commands.
+Do not disable Windows Application Control to make native compiled extensions load.
+
+Start orchestration with `docker compose up -d airflow-init`, wait for completion, then start
+`airflow-api-server`, `airflow-scheduler`, and `airflow-dag-processor`.
 
 ## Recovery
 

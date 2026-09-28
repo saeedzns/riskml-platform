@@ -29,4 +29,4 @@ with DAG(
     transform = PythonOperator(task_id="transform", python_callable=transform_step)
     train = PythonOperator(task_id="train_evaluate_register", python_callable=train_step)
     monitor = PythonOperator(task_id="monitoring_baseline", python_callable=monitoring_step)
-    ingest >> validate >> transform >> train >> monitor
+    ingest >> transform >> validate >> train >> monitor

@@ -32,9 +32,13 @@ def train_model(
     seed: int = 20260928,
     tracking_uri: str | None = None,
     experiment: str = "risk-ml-credit-default",
+    dataset_source: str,
+    dataset_relation: str,
 ) -> TrainingResult:
     """Validate, stratify, fit only on train, evaluate, and persist the complete pipeline."""
 
+    if not dataset_source.strip() or not dataset_relation.strip():
+        raise ValueError("dataset_source and dataset_relation must be explicit")
     clean = validate_applications(frame)
     features = clean.loc[:, RAW_FEATURES]
     target = clean[TARGET]
@@ -63,14 +67,22 @@ def train_model(
         mlflow.set_tracking_uri(tracking_uri)
         mlflow.set_experiment(experiment)
         with mlflow.start_run(run_name=f"{kind}-seed-{seed}"):
-            mlflow.log_params({"model_kind": kind, "seed": seed, "train_rows": len(train_x)})
+            mlflow.log_params(
+                {
+                    "model_kind": kind,
+                    "seed": seed,
+                    "dataset_rows": len(clean),
+                    "train_rows": len(train_x),
+                }
+            )
             mlflow.log_metrics({k: v for k, v in metrics.items() if isinstance(v, float)})
             mlflow.log_artifact(str(metrics_path), artifact_path="evaluation")
             mlflow.log_artifact(str(plot_path), artifact_path="evaluation")
             mlflow.log_artifact(str(artifact_path), artifact_path="model")
             mlflow.set_tags(
                 {
-                    "dataset": "deterministic-synthetic-german-credit-compatible",
+                    "dataset_source": dataset_source.strip(),
+                    "dataset_relation": dataset_relation.strip(),
                     "code_version": "0.1.0",
                 }
             )

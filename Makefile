@@ -1,6 +1,8 @@
-.PHONY: setup format lint type test test-integration verify migrate ingest transform train evaluate monitor api smoke up down
+.PHONY: setup format lint type test test-integration verify migrate fixture ingest transform train evaluate monitor api smoke up down
 
 PYTHON ?= python
+DATASET_INPUT ?= data/processed/credit_fixture.csv
+DATASET_SOURCE ?= synthetic-fixture
 
 setup:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -27,14 +29,17 @@ verify: lint type test
 migrate:
 	$(PYTHON) -m alembic upgrade head
 
+fixture:
+	$(PYTHON) -m risk_ml.cli fixture --output "$(DATASET_INPUT)"
+
 ingest:
-	$(PYTHON) -m risk_ml.cli ingest
+	$(PYTHON) -m risk_ml.cli ingest --input "$(DATASET_INPUT)" --source "$(DATASET_SOURCE)"
 
 transform:
 	$(PYTHON) -m risk_ml.cli transform
 
 train:
-	$(PYTHON) -m risk_ml.cli train --model all
+	$(PYTHON) -m risk_ml.cli train --model all --source "$(DATASET_SOURCE)"
 
 evaluate:
 	$(PYTHON) -m risk_ml.cli evaluate

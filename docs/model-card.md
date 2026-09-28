@@ -1,17 +1,19 @@
-# Model card: synthetic credit-default classifier
+# Model card: UCI-compatible credit-default classifier
 
 ## Intended use
 
-This educational model demonstrates a production ML workflow on deterministic synthetic data modeled
-after UCI German Credit fields. It may support engineering demonstrations and offline experiments. It
-must not approve, deny, price, or otherwise influence real credit.
+This educational model demonstrates a production ML workflow using either the official UCI Statlog
+German Credit mapping or a deterministic compatible fixture. Each run carries an explicit source
+identifier from PostgreSQL into MLflow; the two sources are never labeled interchangeably. It may
+support engineering demonstrations and offline experiments. It must not approve, deny, price, or
+otherwise influence real credit.
 
 ## Models and evaluation
 
 The baseline is class-weighted logistic regression. The comparator is regularized XGBoost. Both share
 one fitted preprocessing pipeline and a fixed seeded stratified 75/25 split. Evaluation reports
-ROC-AUC, average precision, Brier score, precision, recall, F1, and confusion matrix. The synthetic
-fixture and small sample make estimates unstable; no external or temporal validation exists.
+ROC-AUC, average precision, Brier score, precision, recall, F1, and confusion matrix. The historical
+UCI sample and synthetic fixture are both small; no external or temporal validation exists.
 
 ## Risks and limitations
 

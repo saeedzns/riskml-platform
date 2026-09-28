@@ -52,6 +52,31 @@ services:
       timeout: 3s
       retries: 10
 
+  cli:
+    build:
+      context: .
+      dockerfile: docker/cli.Dockerfile
+    environment:
+      RISK_ML_DATABASE_URL: postgresql+psycopg://risk_ml:risk_ml_dev@postgres:5432/risk_ml
+      RISK_ML_MLFLOW_TRACKING_URI: http://mlflow:5000
+      RISK_ML_MODEL_PATH: /app/artifacts/champion.joblib
+      RISK_ML_REFERENCE_PROFILE_PATH: /app/artifacts/reference_profile.json
+    volumes:
+      - ./data/processed:/app/data/processed
+      - ./artifacts:/app/artifacts
+      - ./sql:/app/sql:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    profiles: ["tools"]
+
   api:
     build:
       context: .

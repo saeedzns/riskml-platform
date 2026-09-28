@@ -11,35 +11,35 @@ workflows, and Azure Container Apps/PostgreSQL/Storage/Log Analytics Bicep and r
 
 ## B. Verified commands
 
-- `python -m ruff format --check .` — passed, 62 files.
+- `python -m ruff format --check .` — passed, 68 files.
 - `python -m ruff check .` — passed.
-- `python -m mypy` — passed, 26 source files.
+- `python -m mypy` — passed, 28 source files.
 - `python -m pytest -m "not integration" --cov --cov-report=term-missing` — passed with the skips below.
-- `python -m pip_audit --local --skip-editable` — passed after dependency repair; no known vulnerabilities.
-- `python -m risk_ml.cli download-uci --output data/processed/uci_credit.csv` — passed, 1,000 rows.
-- `python -m risk_ml.cli train --model all --input data/processed/uci_credit.csv` — passed and created
-  real MLflow runs/artifacts.
-- `python -m risk_ml.cli monitor --simulate-shift --output artifacts/drift-shifted.json` — passed,
-  alert status.
-- `python scripts/smoke_api.py` against a live local Uvicorn process — passed over real HTTP.
-- `docker compose config --quiet` — passed.
-- Python `yaml.safe_load` over both workflow files — passed.
+- Targeted curated-loader, CLI, orchestration, modeling, and API tests — 18 passed.
+- `python -m pip_audit --local --skip-editable` — passed; no known vulnerabilities.
+- `docker compose --profile tools config --quiet` — passed; rendered CLI mounts were also asserted.
+- Python YAML parsing over both workflow files — passed.
 
-Unavailable commands and exact recovery actions are documented in `BLOCKERS.md`; they were not
-reported as passing.
+Earlier generated UCI metrics and HTTP smoke evidence remain valid for the unchanged model/API
+behavior. The new database-backed training path, PostgreSQL integration test, image builds, and
+full-stack smoke could not complete after the local Docker daemon disappeared; they are not reported
+as passing. The explicit native integration-test attempt also confirmed Application Control blocks
+`psycopg_binary.pq`. Exact recovery actions are in `BLOCKERS.md` and the local runbook.
 
 ## C. Test results
 
-Final local run: 29 tests collected; 27 passed, 1 skipped because Airflow 3.3 requires POSIX rather
-than native Windows, and 1 PostgreSQL integration test was deselected because no Docker/database
-runtime was available. Coverage was 84.62% with branch measurement and a 75% enforced floor.
+Final local run: 38 tests collected; 36 passed, 1 skipped because Airflow 3.3 requires POSIX rather
+than native Windows, and 1 PostgreSQL integration test was deselected because the Docker/database
+runtime became unavailable. Coverage was 90.29% with branch measurement and a 75% enforced floor.
 
 ## D. Model results
 
 Dataset: official UCI Statlog German Credit, 1,000 rows, 30% adverse target. Split: seeded stratified
 750 train / 250 test. Logistic: ROC-AUC 0.749562, average precision 0.551498, Brier 0.199420, F1
 0.497110. Balanced XGBoost: ROC-AUC 0.735314, average precision 0.543204, Brier 0.197525, F1 0.526946.
-The single small historical split is not production evidence; see `docs/evaluation-report.md`.
+These generated metrics predate the database-loader repair and were not regenerated during this run;
+the selected feature contract and split code are unchanged. The single small historical split is not
+production evidence; see `docs/evaluation-report.md`.
 
 ## E. SQL evidence
 
@@ -58,11 +58,13 @@ validation/deployment commands are in `BLOCKERS.md` and `docs/runbooks/azure-dep
 
 ## G. Known limitations
 
-The first remote CI run independently passed PostgreSQL integration and the dedicated Linux Airflow
-DAG job. It exposed two boundary defects in the general quality and clean-checkout API-image jobs;
-local repairs are complete but await a new remote run. The source has no reliable time axis, so the
-split is not temporal. Fairness, lending compliance, external validation, authenticated API ingress,
-a production feature store, and live concept/performance monitoring are deliberately out of scope.
+Reported CI run #2 passed quality, PostgreSQL integration, and the dedicated Linux Airflow DAG job,
+and the API build passed its earlier artifact-copy failure. The current database-backed training and
+CLI-container repair awaits new CI and clean-room acceptance. Native Windows clean-room execution is
+blocked by Application Control for a compiled scikit-learn extension; the supported workaround is the
+Linux container path, not weaker security. The source has no reliable time axis, so the split is not
+temporal. Fairness, lending compliance, external validation, authenticated API ingress, a production
+feature store, and live concept/performance monitoring are deliberately out of scope.
 
 ## H. Portfolio talking points
 

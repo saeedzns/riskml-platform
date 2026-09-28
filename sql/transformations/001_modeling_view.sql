@@ -37,7 +37,9 @@ SELECT
     r.credit_amount / NULLIF(ps.purpose_avg_amount, 0) AS amount_vs_purpose_avg,
     ps.purpose_applications,
     r.amount_rank_within_purpose,
-    r.defaulted
+    r.defaulted,
+    r.source_name,
+    r.source_row_id
 FROM ranked AS r
 JOIN portfolio_stats AS ps USING (purpose)
 WHERE r.credit_amount > 0

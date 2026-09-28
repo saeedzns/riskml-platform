@@ -12,9 +12,12 @@ documented. Residual complexity is dependency weight, especially Airflow/MLflow/
 ## Data, SQL, and ML review
 
 - Official UCI acquisition and deterministic offline fixtures both validate through the same contract.
+- CLI and Airflow training now load an explicit source from `curated.credit_modeling` through the same
+  parameterized adapter; neither canonical path rereads a CSV for training.
 - The fixed split occurs before learned imputation, scaling, encoding, class weighting, or fitting.
 - Target, identifiers, and named post-outcome fields are rejected. A target-derived purpose aggregate
-  discovered during review was removed from the curated modeling view.
+  discovered during review was removed from the curated modeling view. Remaining whole-dataset SQL
+  analytics are explicitly excluded from the model feature vector.
 - SQL visibly uses constraints, indexes, CTEs, grouping, joins, conditional expressions, a subquery,
   null-safe ratios, and window functions. Query-plan commands are present, but actual `EXPLAIN ANALYZE`
   evidence remains blocked by the missing Docker/PostgreSQL runtime.
@@ -43,27 +46,31 @@ documented. Residual complexity is dependency weight, especially Airflow/MLflow/
 
 ## Verification evidence
 
-- Ruff format: 62 files checked, pass.
+- Ruff format: 68 files checked, pass.
 - Ruff lint: pass.
-- mypy strict package check: 26 source files, pass.
-- pytest: 29 collected; 27 passed, 1 native-Windows Airflow runtime import skipped, 1 PostgreSQL
-  integration test deselected; 84.62% branch-aware coverage.
+- mypy strict package check: 28 source files, pass.
+- pytest: 38 collected; 36 passed, 1 native-Windows Airflow runtime import skipped, 1 PostgreSQL
+  integration test deselected; 90.29% branch-aware coverage.
 - Official UCI training: both models completed; MLflow contained expected metrics and model/evaluation
   artifacts, including generated ROC, precision-recall, and calibration plots.
 - SHAP local explanation: executed through API contract test.
 - Real loopback HTTP smoke: `/health` and `/api/v1/predict` returned 200 on the final dependency stack.
 - Stable and deliberately shifted monitoring scenarios: pass; the shift alerts on exactly the intended
   credit amount and checking-status changes among the asserted features.
-- Workflow YAML: two files parsed locally. Compose configuration: valid.
+- Workflow YAML: two files parsed locally. Compose configuration including the `tools` profile: valid;
+  CLI writable data/artifact mounts, read-only SQL mount, and read-only root were asserted.
 - Dependency audit: no known vulnerabilities after repair.
 
 ## Residual limitations
 
-The first GitHub run independently verified PostgreSQL integration and Linux Airflow DAG import, then
-exposed optional-dependency and clean-checkout image-build defects that are repaired locally and await
-remote rerun confirmation. Local Docker availability still governs full-stack health testing and
-`EXPLAIN ANALYZE`. Azure is designed but not deployed, and Bicep `what-if` awaits
-Azure CLI/auth/subscription/network decisions. The dataset is old/small; there is no temporal/external
-validation, fairness analysis, production telemetry backend, delayed-label loop, or business-validated
-threshold cost. These blockers and minimum resume actions are in `BLOCKERS.md`.
+Reported CI run #2 verified quality, PostgreSQL integration, Linux Airflow import, and progress beyond
+the former API artifact-copy failure. The current repair awaits new CI and clean-room acceptance. The
+Docker engine disappeared during local image construction, so the new CLI image, modified PostgreSQL
+test, canonical container training/smoke path, and `EXPLAIN ANALYZE` remain unverified here. Native
+Windows clean-room execution is blocked by Application Control for a compiled scikit-learn extension;
+the native PostgreSQL test also confirmed a blocked `psycopg_binary.pq` extension. The documented
+Linux CLI container is the supported path. Azure is designed but not deployed, and
+Bicep `what-if` awaits Azure CLI/auth/subscription/network decisions. The dataset is old/small; there
+is no temporal/external validation, fairness analysis, production telemetry backend, delayed-label
+loop, or business-validated threshold cost. Resume actions are in `BLOCKERS.md`.
 

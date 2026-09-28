@@ -40,8 +40,10 @@ flowchart TB
   MON --> FEAT
 ```
 
-The raw schema preserves source-shaped observations. Curated SQL adds transparent derived fields and
-the modeling view. Python validates this contract and owns learned preprocessing. A serialized
-pipeline is the sole serving artifact, preventing training-serving skew. See ADRs for decisions and
-`docs/architecture/azure.md` for the cloud boundary.
+The raw schema preserves source-shaped observations and explicit source identifiers. Curated SQL adds
+transparent derived fields and the modeling view. One parameterized adapter loads a selected source
+from that view, validates it, and exposes only the established leakage-safe raw feature contract plus
+target to training. Portfolio-wide SQL aggregates and ranks stay outside the model vector. Python owns
+the split and learned preprocessing. A serialized pipeline is the sole serving artifact, preventing
+training-serving skew. See ADRs for decisions and `docs/architecture/azure.md` for the cloud boundary.
 
