@@ -65,6 +65,13 @@ jobs:
           cache: pip
       - run: python -m pip install -e ".[dev]"
       - run: python -m pip_audit --local --skip-editable
+      - name: Verify MLflow Compose hostname
+        run: |
+          docker compose up -d --build --wait mlflow
+          docker compose exec -T mlflow python -c "import urllib.request; response = urllib.request.urlopen('http://mlflow:5000/api/2.0/mlflow/experiments/get-by-name?experiment_name=Default', timeout=10); assert response.status == 200"
+      - name: Stop Compose services
+        if: always()
+        run: docker compose down --volumes
 
   airflow-dag:
     runs-on: ubuntu-latest

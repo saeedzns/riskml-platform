@@ -27,7 +27,9 @@ docker compose run --rm cli risk-ml monitor --simulate-shift \
 The CLI service contains the project package and migrations, reaches PostgreSQL and MLflow on the
 Compose network, writes only through the mounted data/artifact directories, and sees repository SQL
 read-only. API images deliberately contain no model. Compose mounts the generated champion read-only;
-without it `/health` remains available while `/ready` returns 503.
+without it `/health` remains available while `/ready` returns 503. MLflow host validation permits only
+the internal `mlflow:5000` endpoint and local UI endpoints on `localhost`; the security middleware
+remains enabled.
 
 For the deterministic offline path, replace the download and ingest commands with:
 
