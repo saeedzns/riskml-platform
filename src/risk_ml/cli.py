@@ -5,6 +5,7 @@ import json
 import shutil
 from pathlib import Path
 
+from risk_ml.analytics.dashboard import SUPPORTED_MODELS, export_dashboard
 from risk_ml.config import get_settings
 from risk_ml.data.fixture import generate_fixture, write_fixture
 from risk_ml.data.ingestion import ingest_csv
@@ -35,6 +36,13 @@ def _parser() -> argparse.ArgumentParser:
     monitor = commands.add_parser("monitor")
     monitor.add_argument("--simulate-shift", action="store_true")
     monitor.add_argument("--output", type=Path, default=Path("artifacts/drift-report.json"))
+    dashboard = commands.add_parser("export-dashboard")
+    dashboard.add_argument("--source", choices=KNOWN_SOURCES, required=True)
+    dashboard.add_argument("--output-dir", type=Path, default=Path("dashboard/data"))
+    dashboard.add_argument(
+        "--drift-report", type=Path, default=Path("artifacts/drift-shifted.json")
+    )
+    dashboard.add_argument("--metrics-dir", type=Path, default=Path("artifacts"))
     return parser
 
 
@@ -88,6 +96,15 @@ def main() -> None:
         write_report(reference_profile(reference), settings.reference_profile_path)
         write_report(report, args.output)
         print(json.dumps(report, sort_keys=True))
+    elif args.command == "export-dashboard":
+        rows = export_dashboard(
+            create_db_engine(),
+            args.source,
+            args.output_dir,
+            args.drift_report,
+            {model: args.metrics_dir / f"metrics-{model}.json" for model in SUPPORTED_MODELS},
+        )
+        print(json.dumps({"output_dir": str(args.output_dir), "rows": rows}, sort_keys=True))
 
 
 if __name__ == "__main__":

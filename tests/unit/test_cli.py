@@ -67,3 +67,42 @@ def test_train_command_uses_curated_database_frame(monkeypatch, tmp_path: Path) 
     assert trainer.call_args.args == (dataset.frame,)
     assert trainer.call_args.kwargs["dataset_source"] == OFFICIAL_UCI_SOURCE
     assert trainer.call_args.kwargs["dataset_relation"] == CURATED_TRAINING_RELATION
+
+
+def test_export_dashboard_command_forwards_explicit_inputs(monkeypatch, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+    engine = object()
+    exporter = Mock(return_value={"portfolio": 1000})
+    output_dir = tmp_path / "dashboard"
+    drift = tmp_path / "drift.json"
+    metrics_dir = tmp_path / "metrics"
+    monkeypatch.setattr("risk_ml.cli.create_db_engine", lambda: engine)
+    monkeypatch.setattr("risk_ml.cli.export_dashboard", exporter)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "risk-ml",
+            "export-dashboard",
+            "--source",
+            OFFICIAL_UCI_SOURCE,
+            "--output-dir",
+            str(output_dir),
+            "--drift-report",
+            str(drift),
+            "--metrics-dir",
+            str(metrics_dir),
+        ],
+    )
+
+    main()
+
+    exporter.assert_called_once_with(
+        engine,
+        OFFICIAL_UCI_SOURCE,
+        output_dir,
+        drift,
+        {
+            "logistic": metrics_dir / "metrics-logistic.json",
+            "xgboost": metrics_dir / "metrics-xgboost.json",
+        },
+    )

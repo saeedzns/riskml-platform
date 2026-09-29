@@ -25,6 +25,8 @@ data/processed/*
 !data/processed/.gitkeep
 artifacts/*
 !artifacts/.gitkeep
+dashboard/data/*
+!dashboard/data/.gitkeep
 mlruns/
 mlartifacts/
 airflow/logs/

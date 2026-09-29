@@ -66,6 +66,7 @@ services:
     volumes:
       - ./data/processed:/app/data/processed
       - ./artifacts:/app/artifacts
+      - ./dashboard/data:/app/dashboard/data
       - ./sql:/app/sql:ro
     depends_on:
       postgres:
