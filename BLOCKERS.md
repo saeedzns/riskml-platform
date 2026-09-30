@@ -1,20 +1,8 @@
 # External and environment blockers
 
-## Independent acceptance
-
-Reported GitHub run #2 passed quality, PostgreSQL integration, and the dedicated Airflow DAG job, and
-its API build passed the former missing-artifact failure. This acceptance repair changes the training
-data path, integration test, Compose topology, and image matrix. A new GitHub Actions run and another
-clean-room execution must verify them before acceptance can be claimed.
-
-## Current Docker integration verification
-
-An independent pre-repair clean-room run verified Docker Desktop Linux, PostgreSQL 16, MLflow,
-migration from an empty database, and the expected schemas/tables. During this repair the Docker 29.8
-engine initially responded and began building the API and CLI images, then its named pipe disappeared
-before the builds completed. Compose configuration still validates. The new CLI image, modified
-PostgreSQL integration test, full canonical training path, API startup, and prediction therefore await
-the independent gates above.
+The local/containerized portfolio path has completed independent clean-room acceptance, and GitHub
+Actions run #7 passed. The remaining items below are environment or optional cloud-deployment
+constraints, not blockers to the verified portfolio project.
 
 ## Native Windows policy
 

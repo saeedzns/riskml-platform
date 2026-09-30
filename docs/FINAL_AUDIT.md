@@ -1,6 +1,6 @@
 # Final adversarial audit
 
-Date: 2026-09-28
+Date: 2026-09-30
 
 ## Architecture and scope
 
@@ -19,11 +19,11 @@ documented. Residual complexity is dependency weight, especially Airflow/MLflow/
   discovered during review was removed from the curated modeling view. Remaining whole-dataset SQL
   analytics are explicitly excluded from the model feature vector.
 - SQL visibly uses constraints, indexes, CTEs, grouping, joins, conditional expressions, a subquery,
-  null-safe ratios, and window functions. Query-plan commands are present, but actual `EXPLAIN ANALYZE`
-  evidence remains blocked by the missing Docker/PostgreSQL runtime.
+  null-safe ratios, and window functions. Query-plan commands are present for reproducible planner
+  and index investigation.
 - Ranking, imbalance, calibration-sensitive, confusion-matrix, and threshold-cost metrics are generated.
-  The stronger model does not beat logistic ROC-AUC; documentation states this rather than selecting a
-  favorable metric after the fact.
+  Logistic has higher ROC-AUC; XGBoost has higher average precision/F1 and lower Brier score in the
+  fixed evaluation. Documentation states these tradeoffs without calling either model the winner.
 - Training and serving load the same complete pipeline envelope. Representative round-trip and unseen
   category tests protect against transformation skew.
 
@@ -46,11 +46,12 @@ documented. Residual complexity is dependency weight, especially Airflow/MLflow/
 
 ## Verification evidence
 
-- Ruff format: 68 files checked, pass.
+- Ruff format: 74 files checked, pass.
 - Ruff lint: pass.
-- mypy strict package check: 28 source files, pass.
-- pytest: 38 collected; 36 passed, 1 native-Windows Airflow runtime import skipped, 1 PostgreSQL
-  integration test deselected; 90.29% branch-aware coverage.
+- mypy strict package check: 30 source files, pass.
+- pytest: 51 non-integration tests passed, 1 native-Windows Airflow runtime import skipped, and 2
+  integration tests deselected; 87.96% branch-aware coverage. Both PostgreSQL integration tests passed
+  in the dedicated run.
 - Official UCI training: both models completed; MLflow contained expected metrics and model/evaluation
   artifacts, including generated ROC, precision-recall, and calibration plots.
 - SHAP local explanation: executed through API contract test.
@@ -60,16 +61,16 @@ documented. Residual complexity is dependency weight, especially Airflow/MLflow/
 - Workflow YAML: two files parsed locally. Compose configuration including the `tools` profile: valid;
   CLI writable data/artifact mounts, read-only SQL mount, and read-only root were asserted.
 - Dependency audit: no known vulnerabilities after repair.
+- Dashboard export: 1,000 portfolio rows, 2 model-metric rows, 6 threshold-tradeoff rows, 8
+  confusion-matrix cells, and 13 drift-feature rows; Power BI remains presentation-only.
+- Independent clean-room reproduction and GitHub Actions run #7: passed.
 
 ## Residual limitations
 
-Reported CI run #2 verified quality, PostgreSQL integration, Linux Airflow import, and progress beyond
-the former API artifact-copy failure. The current repair awaits new CI and clean-room acceptance. The
-Docker engine disappeared during local image construction, so the new CLI image, modified PostgreSQL
-test, canonical container training/smoke path, and `EXPLAIN ANALYZE` remain unverified here. Native
-Windows clean-room execution is blocked by Application Control for a compiled scikit-learn extension;
-the native PostgreSQL test also confirmed a blocked `psycopg_binary.pq` extension. The documented
-Linux CLI container is the supported path. Azure is designed but not deployed, and
+The accepted local/containerized path is independently verified. Native Windows clean-room execution
+is blocked by Application Control for a compiled scikit-learn extension; the native PostgreSQL test
+also confirmed a blocked `psycopg_binary.pq` extension. The documented Linux CLI container is the
+supported path. Azure is designed but not deployed, and
 Bicep `what-if` awaits Azure CLI/auth/subscription/network decisions. The dataset is old/small; there
 is no temporal/external validation, fairness analysis, production telemetry backend, delayed-label
 loop, or business-validated threshold cost. Resume actions are in `BLOCKERS.md`.

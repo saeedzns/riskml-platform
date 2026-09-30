@@ -1,51 +1,107 @@
 # RiskML Platform — Production Credit Risk Machine Learning
 
-An end-to-end, SQL-first credit-default platform demonstrating reproducible data engineering,
-leakage-safe machine learning, experiment tracking, explainable scoring, orchestration, and drift
-monitoring.
+RiskML is an end-to-end, SQL-first credit-default portfolio project. It demonstrates reproducible
+data engineering, leakage-safe machine learning, experiment tracking, explainable scoring,
+orchestration, offline drift analysis, and a downstream Power BI presentation layer.
 
-## What it demonstrates
+The independently reproduced path runs 1,000 official UCI records through PostgreSQL, model training,
+MLflow artifact proxying, a read-only FastAPI service, and deterministic dashboard exports. It is a
+technical portfolio system, not a production lending decision engine.
 
-RiskML turns the public UCI Statlog German Credit dataset into a versioned model and bounded REST
-service. PostgreSQL is a real modeling layer rather than storage decoration: migrations establish
-constraints and indexes, and the curated view uses CTEs, grouped aggregates, a join, window functions,
-conditional features, a subquery, and null-safe ratios. Python owns validation and learned transforms.
+## Architecture
+
+PostgreSQL is a modeling layer rather than storage decoration: migrations enforce the raw contract,
+while the curated view uses CTEs, grouped aggregates, joins, window functions, conditional features,
+subqueries, and null-safe ratios. Python owns validation and learned transforms. Power BI consumes
+generated presentation datasets and never feeds features or decisions back into training or serving.
 
 ```mermaid
 flowchart LR
-  U[UCI / seeded fixture] --> P[(PostgreSQL raw)]
+  U[Official UCI / seeded fixture] --> P[(PostgreSQL raw)]
   P --> S[SQL quality + curated view]
   S --> V[Pandera contract]
   V --> M[Logistic + XGBoost]
-  M --> F[(MLflow + artifact)]
+  M --> F[(MLflow + champion artifact)]
   F --> API[FastAPI + SHAP]
-  S --> D[Drift monitor]
+  S --> D[Offline drift monitor]
+  S --> E[Dashboard CSV exporter]
+  M --> E
+  D --> E
+  E --> BI[Power BI presentation]
   A[Airflow] --> P
   A --> M
   A --> D
 ```
 
-## Verified model result
+## Verified result highlights
 
-The latest local run used all 1,000 official UCI rows, a fixed stratified 75/25 split, and no
-hyperparameter search on the test set. Logistic regression achieved ROC-AUC **0.7496**, average
-precision **0.5515**, and Brier score **0.1994**. Balanced XGBoost achieved ROC-AUC **0.7353**,
-average precision **0.5432**, Brier score **0.1975**, and F1 **0.5269** at threshold 0.5. The baseline
-ranks slightly better; XGBoost is retained as the explanation-capable comparator, not falsely called
-the winner. These generated metrics predate the canonical database-loader repair; the selected rows,
-features, split, and model code are unchanged, but reproduction through the repaired container path is
-an independent acceptance item. See `docs/evaluation-report.md` for confusion matrices and costs.
+The canonical clean-room run used all 1,000 rows from explicit source
+`uci-statlog-german-credit-144`, loaded from `curated.credit_modeling`. A fixed seeded stratified
+75/25 split produced 750 training rows and 250 test rows; learned transforms were fitted only after
+the split.
 
-The 1994 dataset is small and geographically/historically narrow. These are reproducibility results,
-not evidence of suitability for lending. Age and foreign-worker attributes raise fairness and legal
-concerns; this software must not influence real credit decisions.
+| Fixed-split metric | Logistic regression | XGBoost |
+|---|---:|---:|
+| ROC-AUC | 0.7495619047619048 | 0.7412571428571428 |
+| Average precision | 0.5514983321183476 | 0.5613835063550652 |
+| Brier score (lower is better) | 0.19942018644912224 | 0.19416143000125885 |
+| F1 at threshold 0.5 | 0.49710982658959535 | 0.524390243902439 |
+
+Logistic regression has the higher ROC-AUC. XGBoost has higher average precision and F1 and a lower
+Brier score in this fixed evaluation. Neither is called “the winner”; XGBoost is the
+explanation-capable champion artifact used by the API. See
+[`docs/evaluation-report.md`](docs/evaluation-report.md) for interpretation and limitations.
+
+The 1994 dataset is small and geographically and historically narrow. These results establish
+reproducibility, not suitability for lending. Age and foreign-worker attributes raise fairness and
+legal concerns; this software must not influence real credit decisions.
+
+## Analytics & Power BI presentation
+
+Power BI is a downstream presentation layer over curated portfolio data and generated evaluation and
+drift evidence. It does not participate in model training, feature selection, threshold decisions, or
+inference. The reproducible export contains 1,000 portfolio rows, 2 model-metric rows, 6 threshold
+tradeoff rows, 8 confusion-matrix cells, and 13 drift-feature rows.
+
+### Credit Portfolio Overview
+
+![Credit Portfolio Overview](dashboard/screenshots/credit-portfolio.png)
+
+Describes 1,000 applications, the 30% observed default rate, average credit amount and duration, and
+portfolio slices by purpose, checking status, age band, housing, and employment. These are descriptive
+associations only and must not be interpreted causally.
+
+### Model Performance
+
+![Model Performance](dashboard/screenshots/model-performance.png)
+
+Compares Logistic Regression and XGBoost on the fixed evaluation split, including metric cards,
+confusion matrices, false-positive/false-negative threshold tradeoffs, and an illustrative cost. It is
+not live or production performance, and the illustrative cost is not a validated business loss
+function.
+
+### Monitoring & Drift
+
+![Monitoring & Drift](dashboard/screenshots/monitoring-drift.png)
+
+Shows 13 checked features and the two controlled alerts: `credit_amount` via PSI and
+`checking_status` via total variation.
+
+> **OFFLINE SIMULATED DATA DRIFT — NOT CONCEPT DRIFT — NOT LIVE PRODUCTION TELEMETRY**
+
+Presentation resources:
+
+- [Portfolio dashboard PDF](dashboard/RiskML_Portfolio_Dashboard.pdf)
+- [Dashboard data dictionary and export guide](dashboard/README.md)
+- [Three-page Power BI design specification](dashboard/POWER_BI_DESIGN.md)
 
 ## Stack and skill signals
 
 - Data: PostgreSQL 16, SQLAlchemy, Alembic, pandas, NumPy, Pandera, substantial SQL
 - ML: scikit-learn pipelines, logistic regression, XGBoost, calibration/Brier analysis, SHAP
-- MLOps: MLflow, Airflow 3, deterministic fixtures, drift/reference profiling
+- MLOps: MLflow, Airflow 3, deterministic fixtures, reference profiling, offline drift checks
 - Service: FastAPI, Pydantic, structured logs, correlation IDs, bounded batch scoring
+- Analytics / presentation: Power BI, DAX, Power Query, reproducible dashboard CSV exports
 - Delivery: Ruff, mypy, pytest/coverage, pre-commit, Docker/Compose, GitHub Actions, Azure Bicep
 
 ## Quick start
@@ -70,7 +126,7 @@ curl http://localhost:8000/ready
 The UCI download needs network access. The deterministic offline alternative uses `risk-ml fixture`
 followed by ingestion and training with `--source synthetic-fixture`; provenance is never inferred
 from a filename. Detailed prediction, monitoring, native-development, and recovery commands are in
-the local operations runbook.
+the [local operations runbook](docs/runbooks/local-operations.md).
 
 ## API
 
@@ -92,14 +148,20 @@ curl -X POST http://localhost:8000/api/v1/predict \
   }'
 ```
 
-A verified smoke response had the contract:
+The independently reproduced clean-room smoke response was:
 
 ```json
-{"probability": 0.5786790848, "predicted_default": true, "threshold": 0.5, "model_version": "0.1.0"}
+{
+  "probability": 0.3495951294898987,
+  "predicted_default": false,
+  "threshold": 0.5,
+  "model_version": "0.1.0"
+}
 ```
 
-`POST /api/v1/predict/batch` accepts 1–100 records by default. `POST /api/v1/explain` returns the
-largest transformed-feature SHAP contributions and states that they are non-causal.
+This single response verifies the serving path and contract, not model quality. `POST
+/api/v1/predict/batch` accepts 1–100 records by default. `POST /api/v1/explain` returns the largest
+transformed-feature SHAP contributions and states that they are non-causal.
 
 ## Data, SQL, experiments, and monitoring
 
@@ -109,52 +171,76 @@ target; the mapping and rejected alternatives are recorded in ADR 0002.
 
 Canonical training reads an explicitly selected source from `curated.credit_modeling`; it never
 rereads the downloaded CSV. The loader validates the frame but selects only the 13 established raw
-features and target. Whole-dataset SQL aggregates, ranks, and ratios remain analytical columns rather
-than model inputs, preventing held-out distribution information from entering training. MLflow records
-the exact source identifier, curated relation, parameters, metrics, evaluation files, and model
-artifact. The Compose MLflow UI is available at `http://localhost:5000`.
+features and target. Whole-dataset SQL aggregates, ranks, and ratios remain presentation-only
+analytical columns rather than model inputs, preventing held-out distribution information from
+entering training. MLflow records the exact source identifier, curated relation, parameters, metrics,
+evaluation files, and model artifact. Clients upload artifacts through the MLflow server proxy; they
+do not share its filesystem. The Compose MLflow UI is available at `http://localhost:5000`.
 
 Run `python -m risk_ml.cli monitor` for a stable comparison and add `--simulate-shift` for the clearly
 labeled offline drift demonstration. The controlled shift detects `credit_amount` (PSI 5.2698) and
-`checking_status` (total variation 0.7983); this is data drift simulation, not concept drift or live
-production monitoring.
+`checking_status` (total variation 0.7983); this is univariate data-drift simulation, not concept
+drift or live production monitoring.
 
-## Testing and delivery status
+## Testing and acceptance evidence
 
-Canonical checks are `make lint`, `make type`, `make test`, and `make test-integration`. The acceptance
-repair's local non-integration run collected 38 tests: 36 passed, the Airflow runtime import was skipped
-on native Windows, and one PostgreSQL integration test was deselected. Branch-aware coverage was
-90.29%. The suite exercises curated-frame loading, explicit lineage, validation failures, leakage
-defense, split-before-fit training, MLflow metadata, serialization, SHAP, API contracts and limits,
-Airflow structure, monitoring, UCI mapping, and CLI behavior.
+Canonical checks are `make lint`, `make type`, `make test`, and `make test-integration`. The current
+analytics-layer verification produced:
 
-CI definitions add a PostgreSQL service job, clean migration cycle, API and CLI image builds, profiled Compose
-validation, secret scanning, installed-environment dependency audit, and a dedicated Airflow job.
-Reported run #2 passed quality, PostgreSQL integration, and Airflow, and proved the API build passed
-the former missing-artifact point. The current acceptance repair still requires independent CI and
-clean-room verification.
+- 51 non-integration tests passed, 1 POSIX-only Airflow runtime test skipped, and 2 tests deselected
+- 87.96% branch-aware coverage against the enforced 75% threshold
+- 2 PostgreSQL integration tests passed
+- API, CLI, and MLflow image builds plus profiled Compose validation passed
+- live MLflow tracking and cross-container artifact upload/download passed
+- the 1,000-row dashboard export produced counts of 1,000 / 2 / 6 / 8 / 13
+
+Independent acceptance verified official UCI ingestion, PostgreSQL migrations, source-specific
+idempotent ingestion, `curated.credit_modeling`, database-backed Logistic and XGBoost training, MLflow
+tracking and artifact proxying, the champion artifact, read-only FastAPI serving, `/health`, `/ready`,
+prediction, SHAP explanation, offline drift simulation, the Power BI export layer, and clean-room
+Docker reproduction.
+
+[GitHub Actions run #7 passed all jobs](https://github.com/saeedzns/riskml-platform/actions/runs/36548991954),
+including quality, PostgreSQL integration, Airflow DAG validation, container builds, and security
+checks.
+
+## Deployment status and limitations
 
 Azure Bicep targets Container Apps, PostgreSQL Flexible Server, Blob Storage, and Log Analytics using
-GitHub OIDC. It is Azure-ready but **not deployed**; credentials, subscription/region approval,
-network completion, and billable-resource approval are external blockers.
+GitHub OIDC. The infrastructure is Azure-ready but **not deployed**. Deployment is optional and is not
+a blocker to the verified local/containerized portfolio project; it still requires owner-provided
+credentials, subscription and region selection, networking decisions, and approval for billable
+resources.
+
+The source has no reliable time axis, so the split is not temporal. There is no external validation,
+fairness or lending-compliance assessment, authenticated production ingress, delayed-label loop,
+live production telemetry, concept-drift detection, or business-validated threshold cost. These
+limitations preclude production lending use.
 
 ## Documentation map
 
-- `ARCHITECTURE.md` and `docs/architecture/azure.md`: system and deployment boundaries
-- `docs/sql-guide.md` and `docs/data-dictionary.md`: SQL evidence and feature meanings
-- `docs/evaluation-report.md` and `docs/model-card.md`: measured behavior and limitations
-- `docs/data-quality-report.md`: verified source quality and validation policy
-- `docs/runbooks/`: local operations, monitoring, deployment, and rollback
-- `docs/adr/`: dataset, stack, architecture, and deployment decisions
-- `docs/FINAL_AUDIT.md`: adversarial self-review and residual risks
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) and
+  [`docs/architecture/azure.md`](docs/architecture/azure.md): system and deployment boundaries
+- [`docs/sql-guide.md`](docs/sql-guide.md) and
+  [`docs/data-dictionary.md`](docs/data-dictionary.md): SQL evidence and feature meanings
+- [`docs/evaluation-report.md`](docs/evaluation-report.md) and
+  [`docs/model-card.md`](docs/model-card.md): measured behavior and limitations
+- [`docs/data-quality-report.md`](docs/data-quality-report.md): verified source quality and validation
+  policy
+- [`dashboard/README.md`](dashboard/README.md): dashboard datasets and relationships
+- [`dashboard/POWER_BI_DESIGN.md`](dashboard/POWER_BI_DESIGN.md): three-page presentation design
+- [`dashboard/RiskML_Portfolio_Dashboard.pdf`](dashboard/RiskML_Portfolio_Dashboard.pdf): exported
+  portfolio presentation
+- [`docs/runbooks/`](docs/runbooks/): local operations, monitoring, deployment, and rollback
+- [`docs/adr/`](docs/adr/): dataset, stack, architecture, and deployment decisions
+- [`docs/FINAL_AUDIT.md`](docs/FINAL_AUDIT.md): adversarial self-review and residual risks
 
 ## Repository structure
 
-Production code is under `src/risk_ml`; SQL is under `sql`; migrations under `alembic`; the Airflow DAG
-under `airflow/dags`; infrastructure under `infra`; tests are split into unit and PostgreSQL integration
-suites. Downloaded data, model artifacts, MLflow state, databases, secrets, and service runtime files
-are intentionally ignored.
+Production code is under `src/risk_ml`; SQL is under `sql`; migrations are under `alembic`; the
+Airflow DAG is under `airflow/dags`; Power BI presentation assets are under `dashboard`;
+infrastructure is under `infra`; and tests are split into unit and PostgreSQL integration suites.
+Downloaded data, generated dashboard CSVs, model artifacts, MLflow state, databases, secrets, local
+Power BI workbooks, and service runtime files are intentionally ignored.
 
-Security policy and disclosure guidance are in `SECURITY.md`. Remaining work is external acceptance,
-private Azure networking, and smoke-testing an approved Azure deployment.
-
+Security policy and disclosure guidance are in [`SECURITY.md`](SECURITY.md).

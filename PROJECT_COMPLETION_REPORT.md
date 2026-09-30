@@ -7,38 +7,38 @@ PostgreSQL ingestion, Alembic schemas, advanced SQL transformations/quality chec
 preprocessing, logistic and balanced XGBoost models, metric/plot generation, SQLite-backed local
 MLflow tracking, SHAP explanations, bounded FastAPI single/batch scoring, reference/drift profiling,
 an Airflow DAG over reusable steps, non-root container definitions, Compose, GitHub CI/deployment
-workflows, and Azure Container Apps/PostgreSQL/Storage/Log Analytics Bicep and runbooks.
+workflows, reproducible Power BI presentation exports, and Azure Container
+Apps/PostgreSQL/Storage/Log Analytics Bicep and runbooks.
 
 ## B. Verified commands
 
-- `python -m ruff format --check .` — passed, 68 files.
+- `python -m ruff format --check .` — passed, 74 files.
 - `python -m ruff check .` — passed.
-- `python -m mypy` — passed, 28 source files.
+- `python -m mypy` — passed, 30 source files.
 - `python -m pytest -m "not integration" --cov --cov-report=term-missing` — passed with the skips below.
-- Targeted curated-loader, CLI, orchestration, modeling, and API tests — 18 passed.
+- `python -m pytest -m integration` — 2 PostgreSQL integration tests passed.
 - `python -m pip_audit --local --skip-editable` — passed; no known vulnerabilities.
 - `docker compose --profile tools config --quiet` — passed; rendered CLI mounts were also asserted.
 - Python YAML parsing over both workflow files — passed.
 
-Earlier generated UCI metrics and HTTP smoke evidence remain valid for the unchanged model/API
-behavior. The new database-backed training path, PostgreSQL integration test, image builds, and
-full-stack smoke could not complete after the local Docker daemon disappeared; they are not reported
-as passing. The explicit native integration-test attempt also confirmed Application Control blocks
-`psycopg_binary.pq`. Exact recovery actions are in `BLOCKERS.md` and the local runbook.
+Independent clean-room verification completed the official UCI, PostgreSQL, database-backed training,
+MLflow artifact-proxy, read-only API, SHAP, drift, and Power BI export paths. GitHub Actions run #7
+passed all jobs. Native Windows Application Control still blocks some compiled extensions, so Linux
+Compose remains the supported full-stack path.
 
 ## C. Test results
 
-Final local run: 38 tests collected; 36 passed, 1 skipped because Airflow 3.3 requires POSIX rather
-than native Windows, and 1 PostgreSQL integration test was deselected because the Docker/database
-runtime became unavailable. Coverage was 90.29% with branch measurement and a 75% enforced floor.
+Current analytics-layer run: 51 non-integration tests passed, 1 Airflow runtime test was skipped on
+native Windows because it requires POSIX, and 2 integration tests were deselected. Branch-aware
+coverage was 87.96% with a 75% enforced floor. Both PostgreSQL integration tests passed separately.
 
 ## D. Model results
 
 Dataset: official UCI Statlog German Credit, 1,000 rows, 30% adverse target. Split: seeded stratified
 750 train / 250 test. Logistic: ROC-AUC 0.749562, average precision 0.551498, Brier 0.199420, F1
-0.497110. Balanced XGBoost: ROC-AUC 0.735314, average precision 0.543204, Brier 0.197525, F1 0.526946.
-These generated metrics predate the database-loader repair and were not regenerated during this run;
-the selected feature contract and split code are unchanged. The single small historical split is not
+0.497110. Balanced XGBoost: ROC-AUC 0.741257, average precision 0.561384, Brier 0.194161, F1 0.524390.
+Logistic has higher ROC-AUC; XGBoost has higher average precision/F1 and lower Brier score and is the
+explanation-capable champion artifact used by the API. The single small historical split is not
 production evidence; see `docs/evaluation-report.md`.
 
 ## E. SQL evidence
@@ -58,13 +58,12 @@ validation/deployment commands are in `BLOCKERS.md` and `docs/runbooks/azure-dep
 
 ## G. Known limitations
 
-Reported CI run #2 passed quality, PostgreSQL integration, and the dedicated Linux Airflow DAG job,
-and the API build passed its earlier artifact-copy failure. The current database-backed training and
-CLI-container repair awaits new CI and clean-room acceptance. Native Windows clean-room execution is
-blocked by Application Control for a compiled scikit-learn extension; the supported workaround is the
-Linux container path, not weaker security. The source has no reliable time axis, so the split is not
-temporal. Fairness, lending compliance, external validation, authenticated API ingress, a production
-feature store, and live concept/performance monitoring are deliberately out of scope.
+GitHub Actions run #7 and independent clean-room execution verified the accepted local/containerized
+portfolio path. Native Windows clean-room execution remains blocked by Application Control for a
+compiled scikit-learn extension; the supported route is Linux Compose, not weaker security. The source
+has no reliable time axis, so the split is not temporal. Fairness, lending compliance, external
+validation, authenticated API ingress, a production feature store, and live concept/performance
+monitoring are deliberately out of scope.
 
 ## H. Portfolio talking points
 
@@ -84,5 +83,6 @@ feature store, and live concept/performance monitoring are deliberately out of s
 ## I. Resume skill line
 
 Python 3.12, SQL, PostgreSQL, pandas, NumPy, Pandera, scikit-learn, XGBoost, MLflow, SHAP, FastAPI,
-Pydantic, Airflow, Alembic, pytest, Ruff, mypy, Docker Compose, GitHub Actions, Azure Bicep.
+Pydantic, Airflow, Alembic, pytest, Ruff, mypy, Docker Compose, GitHub Actions, Power BI, DAX, Power
+Query, Azure Bicep.
 

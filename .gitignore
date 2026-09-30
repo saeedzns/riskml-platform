@@ -27,6 +27,7 @@ artifacts/*
 !artifacts/.gitkeep
 dashboard/data/*
 !dashboard/data/.gitkeep
+dashboard/*.pbix
 mlruns/
 mlartifacts/
 airflow/logs/
