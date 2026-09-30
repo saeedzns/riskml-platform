@@ -1,39 +1,42 @@
 # RiskML Platform — Production Credit Risk Machine Learning
 
-RiskML is an end-to-end, SQL-first credit-default portfolio project. It demonstrates reproducible
-data engineering, leakage-safe machine learning, experiment tracking, explainable scoring,
-orchestration, offline drift analysis, and a downstream Power BI presentation layer.
+RiskML is an end-to-end, SQL-first credit-default portfolio project spanning reproducible data
+engineering, leakage-safe ML, tracking, explainable serving, offline drift analysis, and Power BI. Its
+independently reproduced container path is a technical showcase, not a production lending system.
 
-The independently reproduced path runs 1,000 official UCI records through PostgreSQL, model training,
-MLflow artifact proxying, a read-only FastAPI service, and deterministic dashboard exports. It is a
-technical portfolio system, not a production lending decision engine.
+## Verified at a glance
 
-## Architecture
+| Area | Verified evidence |
+|---|---|
+| Dataset | 1,000 official UCI German Credit rows |
+| Split | 750 training / 250 test rows |
+| Models | Logistic Regression and XGBoost |
+| Data layer | PostgreSQL and `curated.credit_modeling` SQL view |
+| Validation | Pandera |
+| Tracking | MLflow |
+| Serving | FastAPI |
+| Explainability | SHAP |
+| Monitoring | Offline simulated data drift |
+| Presentation | Power BI |
+| Coverage | 87.96% branch-aware |
+| Reproduction | Clean-room Docker path verified |
+| CI | [GitHub Actions run #8](https://github.com/saeedzns/riskml-platform/actions/runs/36736313203) passed |
 
-PostgreSQL is a modeling layer rather than storage decoration: migrations enforce the raw contract,
-while the curated view uses CTEs, grouped aggregates, joins, window functions, conditional features,
-subqueries, and null-safe ratios. Python owns validation and learned transforms. Power BI consumes
-generated presentation datasets and never feeds features or decisions back into training or serving.
+## Project at a glance
 
-```mermaid
-flowchart LR
-  U[Official UCI / seeded fixture] --> P[(PostgreSQL raw)]
-  P --> S[SQL quality + curated view]
-  S --> V[Pandera contract]
-  V --> M[Logistic + XGBoost]
-  M --> F[(MLflow + champion artifact)]
-  F --> API[FastAPI + SHAP]
-  S --> D[Offline drift monitor]
-  S --> E[Dashboard CSV exporter]
-  M --> E
-  D --> E
-  E --> BI[Power BI presentation]
-  A[Airflow] --> P
-  A --> M
-  A --> D
-```
+RiskML moves verified credit data from PostgreSQL through model training, MLflow tracking, FastAPI
+serving, offline drift checks, and Power BI presentation.
 
-## Verified result highlights
+![RiskML project summary](docs/images/riskml-project-summary.png)
+
+## Dashboard preview
+
+![Credit Portfolio dashboard](dashboard/screenshots/credit-portfolio.png)
+
+The dashboard is a downstream presentation of curated and generated evidence; it does not feed the
+ML pipeline or make decisions.
+
+## Verified model results
 
 The canonical clean-room run used all 1,000 rows from explicit source
 `uci-statlog-german-credit-144`, loaded from `curated.credit_modeling`. A fixed seeded stratified
@@ -48,20 +51,27 @@ the split.
 | F1 at threshold 0.5 | 0.49710982658959535 | 0.524390243902439 |
 
 Logistic regression has the higher ROC-AUC. XGBoost has higher average precision and F1 and a lower
-Brier score in this fixed evaluation. Neither is called “the winner”; XGBoost is the
-explanation-capable champion artifact used by the API. See
+Brier score in this fixed evaluation. XGBoost is the explanation-capable champion artifact used by
+the API. See
 [`docs/evaluation-report.md`](docs/evaluation-report.md) for interpretation and limitations.
 
-The 1994 dataset is small and geographically and historically narrow. These results establish
-reproducibility, not suitability for lending. Age and foreign-worker attributes raise fairness and
-legal concerns; this software must not influence real credit decisions.
+## Detailed architecture
+
+![RiskML detailed architecture](docs/images/riskml-detailed-architecture.png)
+
+PostgreSQL is a modeling layer rather than storage decoration: migrations enforce the raw contract,
+while the curated view uses CTEs, grouped aggregates, joins, window functions, conditional features,
+subqueries, and null-safe ratios. Python owns validation and learned transforms. The serving path is
+read-only and stateless; monitoring is offline univariate data drift only; and Power BI is downstream
+of the ML system.
 
 ## Analytics & Power BI presentation
 
 Power BI is a downstream presentation layer over curated portfolio data and generated evaluation and
-drift evidence. It does not participate in model training, feature selection, threshold decisions, or
-inference. The reproducible export contains 1,000 portfolio rows, 2 model-metric rows, 6 threshold
-tradeoff rows, 8 confusion-matrix cells, and 13 drift-feature rows.
+drift evidence. It does not participate in model training, model feature engineering, model selection,
+threshold selection, inference, SHAP computation, or production decision logic. The reproducible
+export contains 1,000 portfolio rows, 2 model-metric rows, 6 threshold-tradeoff rows, 8
+confusion-matrix cells, and 13 drift-feature rows.
 
 ### Credit Portfolio Overview
 
@@ -190,8 +200,11 @@ analytics-layer verification produced:
 - 51 non-integration tests passed, 1 POSIX-only Airflow runtime test skipped, and 2 tests deselected
 - 87.96% branch-aware coverage against the enforced 75% threshold
 - 2 PostgreSQL integration tests passed
-- API, CLI, and MLflow image builds plus profiled Compose validation passed
-- live MLflow tracking and cross-container artifact upload/download passed
+- API, CLI, and MLflow image builds passed
+- profiled Compose validation passed
+- Gitleaks and installed-environment `pip-audit` passed
+- live MLflow tracking and proxied cross-container artifact upload, listing, and download passed
+- clean-room Docker reproduction and the Power BI export layer were verified
 - the 1,000-row dashboard export produced counts of 1,000 / 2 / 6 / 8 / 13
 
 Independent acceptance verified official UCI ingestion, PostgreSQL migrations, source-specific
@@ -200,7 +213,7 @@ tracking and artifact proxying, the champion artifact, read-only FastAPI serving
 prediction, SHAP explanation, offline drift simulation, the Power BI export layer, and clean-room
 Docker reproduction.
 
-[GitHub Actions run #7 passed all jobs](https://github.com/saeedzns/riskml-platform/actions/runs/36548991954),
+[GitHub Actions run #8 passed all jobs](https://github.com/saeedzns/riskml-platform/actions/runs/36736313203),
 including quality, PostgreSQL integration, Airflow DAG validation, container builds, and security
 checks.
 
@@ -212,7 +225,9 @@ a blocker to the verified local/containerized portfolio project; it still requir
 credentials, subscription and region selection, networking decisions, and approval for billable
 resources.
 
-The source has no reliable time axis, so the split is not temporal. There is no external validation,
+The 1994 dataset is small and geographically and historically narrow, and it has no reliable time
+axis, so the split is not temporal. Age and foreign-worker attributes raise fairness and legal
+concerns; this software must not influence real credit decisions. There is no external validation,
 fairness or lending-compliance assessment, authenticated production ingress, delayed-label loop,
 live production telemetry, concept-drift detection, or business-validated threshold cost. These
 limitations preclude production lending use.
@@ -227,6 +242,10 @@ limitations preclude production lending use.
   [`docs/model-card.md`](docs/model-card.md): measured behavior and limitations
 - [`docs/data-quality-report.md`](docs/data-quality-report.md): verified source quality and validation
   policy
+- [`docs/images/riskml-project-summary.png`](docs/images/riskml-project-summary.png): compact project
+  flow
+- [`docs/images/riskml-detailed-architecture.png`](docs/images/riskml-detailed-architecture.png):
+  detailed technical architecture
 - [`dashboard/README.md`](dashboard/README.md): dashboard datasets and relationships
 - [`dashboard/POWER_BI_DESIGN.md`](dashboard/POWER_BI_DESIGN.md): three-page presentation design
 - [`dashboard/RiskML_Portfolio_Dashboard.pdf`](dashboard/RiskML_Portfolio_Dashboard.pdf): exported
